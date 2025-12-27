@@ -1,64 +1,53 @@
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const { Groq } = require('groq-sdk');
 
-// Crear la aplicación
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use(express.static(__dirname));
 
-// Configurar Groq (IA)
+// Configurar Groq
 const groq = new Groq({
     apiKey: process.env.GROQ_API_KEY || 'TU_API_KEY_AQUI'
 });
 
-// Ruta principal
+// Servir index.html en la raíz
 app.get('/', (req, res) => {
-    res.send('¡CliniBot está funcionando!');
+    res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// Ruta del chatbot
+// Ruta del chatbot API
 app.post('/api/chat', async (req, res) => {
     try {
-        const { message, clinicName, clinicInfo } = req.body;
+        const { message, clinicName = "Clínica Dental", clinicInfo = "Horarios: Lunes a Viernes 9am-6pm" } = req.body;
         
-        // Crear el prompt (instrucciones para la IA)
-        const prompt = `
-        Eres el asistente virtual de "${clinicName}". 
-        Información de la clínica: ${clinicInfo}
+        const prompt = `Eres asistente de ${clinicName}. Información: ${clinicInfo}.
+        Responde preguntas sobre horarios, precios, citas. Para emergencias deriva al teléfono.
+        Pregunta: ${message}
+        Respuesta:`;
         
-        REGLAS IMPORTANTES:
-        1. Sé amable y profesional
-        2. Si preguntan por citas, ofrece horarios disponibles
-        3. Si preguntan precios, da rangos aproximados
-        4. Para emergencias, deriva al teléfono
-        5. Mantén respuestas cortas y útiles
-        
-        PREGUNTA DEL USUARIO: ${message}
-        
-        RESPUESTA:`;
-        
-        // Obtener respuesta de la IA
         const chatCompletion = await groq.chat.completions.create({
             messages: [{ role: "user", content: prompt }],
             model: "mixtral-8x7b-32768",
             temperature: 0.7,
-            max_tokens: 300
+            max_tokens: 200
         });
         
         const reply = chatCompletion.choices[0]?.message?.content || 
-                    "Lo siento, no pude procesar tu pregunta. Por favor contacta al 555-1234";
+                    "Disculpa, hubo un error. Por favor llama al consultorio.";
         
         res.json({ reply });
         
     } catch (error) {
         console.error('Error:', error);
-        res.json({ reply: "Disculpa, estoy teniendo dificultades técnicas. Por favor llama al 555-1234 para asistencia inmediata." });
+        res.json({ reply: "Error técnico. Por favor contacta al consultorio directamente." });
     }
 });
 
 // Iniciar servidor
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-    console.log(`Servidor funcionando en puerto ${PORT}`);
+    console.log(`✅ Servidor funcionando en puerto ${PORT}`);
 });
